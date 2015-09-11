@@ -2,3 +2,6 @@
 	path = lilypond
 	url = git@github.com:yurrriq/dockerfiles.git
 	branch = lilypond
+[submodule "rethinkdb"]
+	path = rethinkdb
+	url = git@github.com:yurrriq/docker-rethinkdb.git
