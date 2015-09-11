@@ -1,0 +1,4 @@
+[submodule "lilypond"]
+	path = lilypond
+	url = git@github.com:yurrriq/dockerfiles.git
+	branch = lilypond
