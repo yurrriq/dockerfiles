@@ -1,2 +1,2 @@
 * LilyPond
-A Dockerfile for LilyPond.
+A [[file:Dockerfile][Dockerfile]] for [[http://lilypond.org][LilyPond]].
