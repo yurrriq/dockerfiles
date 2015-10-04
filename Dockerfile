@@ -4,7 +4,7 @@ MAINTAINER Eric Bailey <eric@ericb.me>
 
 # Install LilyPond.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends lilypond
+    apt-get install -y --no-install-recommends lilypond make
 
 # Clean APT.
 RUN apt-get clean && \
