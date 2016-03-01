@@ -5,3 +5,7 @@
 [submodule "rethinkdb"]
 	path = rethinkdb
 	url = git@github.com:yurrriq/docker-rethinkdb.git
+[submodule "otp-lfe-rebar3"]
+	path = otp-lfe-rebar3
+	url = git@github.com:yurrriq/dockerfiles.git
+	branch = otp-lfe-rebar3
