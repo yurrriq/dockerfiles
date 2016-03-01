@@ -1,0 +1,259 @@
+#+OPTIONS: title:nil toc:t todo:t |:t
+#+TITLE: OTP + LFE + Rebar3
+#+DATE: <2016-03-01 Tue>
+#+AUTHOR: Eric Bailey
+#+LANGUAGE: en
+#+CREATOR: Emacs 24.5.1 (Org mode 8.3.4)
+
+* OTP + LFE + Rebar3
+  :PROPERTIES:
+  :tangle:   Dockerfile
+  :END:
+
+#+BEGIN_SRC dockerfile
+FROM debian:jessie
+MAINTAINER Eric Bailey
+#+END_SRC
+
+** Dependencies
+#+BEGIN_SRC dockerfile :exports none
+# Dependencies
+#+END_SRC
+#+BEGIN_SRC dockerfile :padline no
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-utils \
+#+END_SRC
+
+These next several dependecies come [[http://docs.basho.com/riak/latest/ops/building/installing/erlang/#Debian-Ubuntu-Prerequisites][recommended]] by [[http://basho.com][Basho]].
+#+BEGIN_SRC dockerfile :padline no
+    build-essential \
+    libncurses5-dev \
+    openssl \
+    libssl-dev \
+    fop \
+    xsltproc \
+    unixodbc-dev \
+    git \
+#+END_SRC
+
+Install ~autoconf~ for building OTP.
+#+BEGIN_SRC dockerfile :padline no
+    autoconf \
+#+END_SRC
+
+To download all the tarballs, we need ~curl~.
+#+BEGIN_SRC dockerfile :padline no
+    ca-certificates \
+    libcurl4-openssl-dev \
+    curl \
+#+END_SRC
+
+We need get for [[https://www.rebar3.org][rebar3]], if nothing else.
+#+BEGIN_SRC dockerfile :padline no
+    git
+#+END_SRC
+
+** OTP
+#+BEGIN_SRC dockerfile :exports none
+# OTP
+#+END_SRC
+
+Set the ~OTP_VERSION~ environment variable.
+#+BEGIN_SRC dockerfile :padline no
+ENV OTP_VERSION 18.2.4
+#+END_SRC
+
+Set some variables in this ~RUN~ step for clarity, brevity and typo safety.
+#+BEGIN_SRC dockerfile :padline no
+RUN set -xe \
+    && OTP_REPO="https://github.com/erlang/otp" \
+    && OTP_TARBALL="OTP-$OTP_VERSION.tar.gz" \
+    && OTP_DOWNLOAD_URL="$OTP_REPO/archive/$OTP_TARBALL" \
+    && OTP_DOWNLOAD_SHA1="4c8d90feb15b58c6b5929413b056c419166d7fc4" \
+    && OTP_SRC="/usr/src/otp-src" \
+#+END_SRC
+
+Download the specified OTP release tarball and verify its checksum.
+#+BEGIN_SRC dockerfile :padline no
+    && curl -fSLO "$OTP_DOWNLOAD_URL" \
+    && echo "$OTP_DOWNLOAD_SHA1 $OTP_TARBALL" | sha1sum -c - \
+#+END_SRC
+
+Ensure the ~$OTP_SRC~ directory exists, extract the contents
+of the tarball there and then delete it.
+#+BEGIN_SRC dockerfile :padline no
+    && mkdir -p $OTP_SRC \
+    && tar -xzf $OTP_TARBALL -C $OTP_SRC --strip-components=1 \
+    && rm $OTP_TARBALL \
+#+END_SRC
+
+Change to the ~$OTP_SRC~ directory and configure the OTP build.
+#+BEGIN_SRC dockerfile :padline no
+    && cd $OTP_SRC \
+    && ./otp_build autoconf \
+    && ./configure \
+#+END_SRC
+
+Build the OTP release, allowing ~nproc~ concurrent jobs, then install it.
+#+BEGIN_SRC dockerfile :padline no
+    && make -j$(nproc) \
+    && make install \
+#+END_SRC
+
+Remove the installed OTP examples as well as ~$OTP_SRC~.
+#+BEGIN_SRC dockerfile :padline no
+    && find /usr/local -name examples | xargs rm -rf \
+    && rm -rf $OTP_SRC
+#+END_SRC
+
+** LFE
+#+BEGIN_SRC dockerfile :exports none
+# LFE
+#+END_SRC
+
+Set the ~LFE_VERSION~ and ~LFE_HOME~ environment variables.
+#+BEGIN_SRC dockerfile :padline no
+ENV LFE_VERSION 0.10.1
+ENV LFE_HOME /opt/erlang/lfe
+#+END_SRC
+
+Set some variables in this ~RUN~ step for clarity, brevity and typo safety.
+#+BEGIN_SRC dockerfile :padline no
+RUN set -xe \
+    && LFE_REPO="https://github.com/rvirding/lfe" \
+    && LFE_TARBALL="$LFE_VERSION.tar.gz" \
+    && LFE_DOWNLOAD_URL="$LFE_REPO/archive/$LFE_TARBALL" \
+    && LFE_DOWNLOAD_SHA1="7c8f351758d270dea482707d5fcb4de82fe3862f" \
+#+END_SRC
+
+Download the specified LFE release tarball and verify its checksum.
+#+BEGIN_SRC dockerfile :padline no
+    && curl -fSLO "$LFE_DOWNLOAD_URL" \
+    && echo "$LFE_DOWNLOAD_SHA1 $LFE_TARBALL" | sha1sum -c - \
+#+END_SRC
+
+Ensure the ~$LFE_HOME~ directory exists, extract the contents
+of the tarball there and then delete it.
+#+BEGIN_SRC dockerfile :padline no
+    && mkdir -p $LFE_HOME \
+    && tar -xzf $LFE_TARBALL -C $LFE_HOME --strip-components=1 \
+    && rm $LFE_TARBALL \
+#+END_SRC
+
+Change to the ~$LFE_HOME~ directory and prepend =bin= to ~$PATH~.
+The =bin= hack is to ensure ~lfec~ works when compiling the ~cl~ module.
+#+BEGIN_SRC dockerfile :padline no
+    && cd $LFE_HOME \
+    && PATH="bin:$PATH" \
+#+END_SRC
+
+There's currently an issue when compiling lfe such that
+we have to call ~make compile~ twice.
+#+BEGIN_SRC dockerfile :padline no
+    && make compile; \
+    make compile install
+#+END_SRC
+
+** Rebar3
+#+BEGIN_SRC dockerfile :exports none
+# rebar3
+#+END_SRC
+
+Set the ~REBAR_VERSION~ environment variable.
+#+BEGIN_SRC dockerfile :padline no
+ENV REBAR3_VERSION beta-4
+#+END_SRC
+
+Set some variables in this ~RUN~ step for clarity, brevity and typo safety.
+#+BEGIN_SRC dockerfile :padline no
+RUN set -xe \
+    && REBAR3_REPO="https://github.com/rebar/rebar3" \
+    && REBAR3_TARBALL="$REBAR3_VERSION.tar.gz" \
+    && REBAR3_DOWNLOAD_URL="$REBAR3_REPO/archive/$REBAR3_TARBALL" \
+    && REBAR3_DOWNLOAD_SHA1="a7c7776d511631f61d1e6ec565baf10b96b32449" \
+    && REBAR3_SRC="/usr/src/rebar3-src" \
+#+END_SRC
+
+Download the specified ~rebar3~ release tarball and verify its checksum.
+#+BEGIN_SRC dockerfile :padline no
+    && curl -fSLO "$REBAR3_DOWNLOAD_URL" \
+    && echo "$REBAR3_DOWNLOAD_SHA1 $REBAR3_TARBALL" | sha1sum -c - \
+#+END_SRC
+
+Ensure the ~$REBAR3_SRC~ directory exists, extract the contents
+of the tarball there and then delete it.
+#+BEGIN_SRC dockerfile :padline no
+    && mkdir -p $REBAR3_SRC \
+    && tar -xzf $REBAR3_TARBALL -C $REBAR3_SRC --strip-components=1 \
+    && rm $REBAR3_TARBALL \
+#+END_SRC
+
+Change to the ~$REBAR3_SRC~ directory then bootstrap and install ~rebar3~.
+#+BEGIN_SRC dockerfile :padline no
+    && cd $REBAR3_SRC \
+    && HOME=$PWD ./bootstrap \
+    && install -v ./rebar3 /usr/local/bin/ \
+#+END_SRC
+
+Remove ~$REBAR3_SRC~ since we don't really need it any more.
+#+BEGIN_SRC dockerfile :padline no
+    && rm -rf $REBAR3_SRC
+#+END_SRC
+
+** Pandoc
+#+BEGIN_SRC dockerfile :exports none
+# pandoc
+#+END_SRC
+
+~pandoc~ is especially useful for [[https://github.com/quasiquoting/lodox][lodox]], but it's a cool program to have anyway.
+
+Set the ~PANDOC_VERSION~ environment variable.
+#+BEGIN_SRC dockerfile :padline no
+ENV PANDOC_VERSION 1.16.0.2
+#+END_SRC
+
+Set some variables in this ~RUN~ step for clarity, brevity and typo safety.
+#+BEGIN_SRC dockerfile :padline no
+RUN set -xe \
+    && PANDOC_REPO="https://github.com/jgm/pandoc/releases/" \
+    && PANDOC_DEB="pandoc-$PANDOC_VERSION-1-amd64.deb" \
+    && PANDOC_DOWNLOAD_URL="$PANDOC_REPO/download/$PANDOC_VERSION/$PANDOC_DEB" \
+    && PANDOC_DOWNLOAD_SHA1="62897204ce29adf67966566b4a08f02b64c09bf2" \
+#+END_SRC
+
+Download the specified ~pandoc~ release tarball and verify its checksum.
+#+BEGIN_SRC dockerfile :padline no
+    && curl -fSLO "$PANDOC_DOWNLOAD_URL" \
+    && echo "$PANDOC_DOWNLOAD_SHA1 $PANDOC_DEB" | sha1sum -c - \
+#+END_SRC
+
+Install the ~pandoc~ package then remove ~$PANDOC_DEB~.
+#+BEGIN_SRC dockerfile :padline no
+    && dpkg -i $PANDOC_DEB \
+    && rm $PANDOC_DEB
+#+END_SRC
+
+** Cleanup
+Clean up after ~aptitude~.
+#+BEGIN_SRC dockerfile
+# Clean APT.
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+#+END_SRC
+
+** Running
+Set =/usr/src= as both mountable and the ~WORKDIR~.
+#+BEGIN_SRC dockerfile
+# Define mountable directories.
+VOLUME ["/usr/src"]
+
+# Define working directory.
+WORKDIR /usr/src
+#+END_SRC
+
+Then set the default command to ~rebar3 compile~.
+#+BEGIN_SRC dockerfile
+# Define default command.
+CMD ["rebar3", "compile"]
+#+END_SRC
